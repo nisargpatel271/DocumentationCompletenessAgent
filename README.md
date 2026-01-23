@@ -16,17 +16,12 @@ An AI-powered agent to analyze code repositories, identify insufficient document
 - Docker & Docker Compose
 - PostgreSQL (or use Docker)
 
-### Running Locally
-
 #### Frontend
 ```bash
 cd src/web
 npm install
 npm run dev
 ```
-
-#### Backend
-*(Instructions pending .NET Setup)*
 
 #### Database
 Run the scripts in `database/` to initialize your PostgreSQL instance.
