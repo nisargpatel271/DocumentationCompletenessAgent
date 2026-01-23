@@ -27,3 +27,11 @@ obj/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Documentation
+requirements.md
+*.pdf
+
+# Planning & Reports
+Week1_Report.md
+Phase1_Implementation_Plan.md
