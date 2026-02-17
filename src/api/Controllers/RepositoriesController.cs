@@ -41,6 +41,15 @@ namespace DocumentationCompleteness.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Repository>> PostRepository(Repository repository)
         {
+            if (repository.Id == Guid.Empty)
+            {
+                repository.Id = Guid.NewGuid();
+            }
+
+            // Set timestamps
+            repository.CreatedAt = DateTime.UtcNow;
+            repository.UpdatedAt = DateTime.UtcNow;
+
             _context.Repositories.Add(repository);
             await _context.SaveChangesAsync();
 

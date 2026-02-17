@@ -19,7 +19,6 @@ import {
     LayoutDashboard,
     FolderGit2,
     Settings,
-    ChevronLeft,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 

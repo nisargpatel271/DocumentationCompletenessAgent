@@ -5,13 +5,28 @@ using DocumentationCompleteness.Api.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add Database Context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add Integration Settings
+builder.Services.Configure<DocumentationCompleteness.Api.Models.Configuration.IntegrationSettings>(
+    builder.Configuration.GetSection("Integrations"));
+
+// Add Services
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IGitHubService, DocumentationCompleteness.Api.Services.GitHubService>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IAzureDevOpsService, DocumentationCompleteness.Api.Services.AzureDevOpsService>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IGitService, DocumentationCompleteness.Api.Services.GitService>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IFileService, DocumentationCompleteness.Api.Services.FileService>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.Analysis.ICodeAnalyzer, DocumentationCompleteness.Api.Services.Analysis.UniversalCodeAnalyzer>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IAnalysisService, DocumentationCompleteness.Api.Services.AnalysisService>();
+
+
 
 // Add CORS
 builder.Services.AddCors(options =>
