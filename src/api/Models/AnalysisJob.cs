@@ -33,5 +33,8 @@ namespace DocumentationCompleteness.Api.Models
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("error_message")]
+        public string? ErrorMessage { get; set; }
     }
 }

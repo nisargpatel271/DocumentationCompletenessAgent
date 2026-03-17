@@ -1,31 +1,22 @@
-import axios from 'axios';
-import type { Repository } from '../types/Repository';
-
-const API_URL = 'http://localhost:5022/api/repositories';
+import { api } from './api';
+import type { Repository } from '../types';
 
 export const RepositoryService = {
-    getAll: async (): Promise<Repository[]> => {
-        const response = await axios.get<Repository[]>(API_URL);
-        return response.data;
-    },
-
-    getById: async (id: string): Promise<Repository> => {
-        const response = await axios.get<Repository>(`${API_URL}/${id}`);
-        return response.data;
-    },
-
-    create: async (repository: Omit<Repository, 'id' | 'createdAt' | 'updatedAt'>): Promise<Repository> => {
-        const response = await axios.post<Repository>(API_URL, repository);
-        return response.data;
-    },
-
-    getGitHubRepositories: async (): Promise<Repository[]> => {
-        const response = await axios.get<Repository[]>('http://localhost:5022/api/integrations/github/repos');
-        return response.data;
-    },
-
-    getAzureDevOpsRepositories: async (): Promise<Repository[]> => {
-        const response = await axios.get<Repository[]>('http://localhost:5022/api/integrations/ado/repos');
-        return response.data;
-    }
+  getAll: async (): Promise<Repository[]> => {
+    const res = await api.get('/repositories');
+    return res.data;
+  },
+  create: async (data: {
+    name: string;
+    repositoryUrl: string;
+    source: string;
+    defaultBranch: string;
+    personalAccessToken: string;
+  }): Promise<Repository> => {
+    const res = await api.post('/repositories', data);
+    return res.data;
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/repositories/${id}`);
+  },
 };

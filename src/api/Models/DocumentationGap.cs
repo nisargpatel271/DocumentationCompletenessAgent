@@ -63,5 +63,13 @@ namespace DocumentationCompleteness.Api.Models
 
         [Column("status")]
         public string Status { get; set; } = "Open"; // Open, Resolved
+
+        // --- AI Integration Fields ---
+
+        [Column("language")]
+        public string Language { get; set; } = string.Empty; // csharp, python, javascript, typescript, cpp
+
+        [Column("code_snippet", TypeName = "text")]
+        public string CodeSnippet { get; set; } = string.Empty; // Raw code extracted at gap detection time
     }
 }

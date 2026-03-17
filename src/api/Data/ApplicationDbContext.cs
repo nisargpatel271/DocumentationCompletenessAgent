@@ -14,6 +14,7 @@ namespace DocumentationCompleteness.Api.Data
         public DbSet<AnalysisJob> AnalysisJobs { get; set; }
         public DbSet<AnalysisResult> AnalysisResults { get; set; }
         public DbSet<DocumentationGap> DocumentationGaps { get; set; }
+        public DbSet<AISuggestion> AISuggestions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

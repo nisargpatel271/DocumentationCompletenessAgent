@@ -26,6 +26,17 @@ builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IFileService, 
 builder.Services.AddScoped<DocumentationCompleteness.Api.Services.Analysis.ICodeAnalyzer, DocumentationCompleteness.Api.Services.Analysis.UniversalCodeAnalyzer>();
 builder.Services.AddScoped<DocumentationCompleteness.Api.Services.IAnalysisService, DocumentationCompleteness.Api.Services.AnalysisService>();
 
+// Add AI Services
+builder.Services.AddSingleton<DocumentationCompleteness.Api.Services.AI.AzureOpenAIClientWrapper>();
+builder.Services.AddSingleton<DocumentationCompleteness.Api.Services.AI.PromptTemplateEngine>();
+builder.Services.AddSingleton<DocumentationCompleteness.Api.Services.AI.ResponseValidator>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.AIDocumentationService>();
+builder.Services.AddScoped<DocumentationCompleteness.Api.Services.DashboardService>();
+
+// Background Job Processing
+builder.Services.AddSingleton<DocumentationCompleteness.Api.Services.Background.AnalysisJobQueue>();
+builder.Services.AddHostedService<DocumentationCompleteness.Api.Services.Background.AnalysisWorker>();
+
 
 
 // Add CORS
@@ -38,6 +49,12 @@ builder.Services.AddCors(options =>
                    .AllowAnyMethod()
                    .AllowAnyHeader();
         });
+});
+
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = 
+        BackgroundServiceExceptionBehavior.Ignore;
 });
 
 var app = builder.Build();

@@ -213,7 +213,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
             if (!HasFileHeaderGeneric(lines, "#"))
             {
                  // Py files often lack headers, keeping it Medium
-                 gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing standard file header/copyright.", "Missing", "Header"));
+                 gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing standard file header/copyright.", "Missing", "Header", fileLines: lines));
             }
 
             for (int i = 0; i < lines.Length; i++)
@@ -245,7 +245,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
                         {
                             if (!PyDocstringArgsRegex.IsMatch(docContent) && line.Contains(",")) // Heuristic: has params
                             {
-                                gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, "Parameter", name, "Medium", "Public API docstring missing 'Args:' section.", "Incomplete", "Parameters"));
+                                gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, "Parameter", name, "Medium", "Public API docstring missing 'Args:' section.", "Incomplete", "Parameters", fileLines: lines));
                             }
                             if (!PyDocstringReturnsRegex.IsMatch(docContent) && !line.Contains("-> None")) // Heuristic: might return
                             {
@@ -256,7 +256,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
                     else
                     {
                         var severity = isPublic ? "Critical" : "Low";
-                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, severity, $"Missing docstring for {(isPublic ? "public" : "internal")} {type.ToLower()}.", "Missing", "Summary"));
+                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, severity, $"Missing docstring for {(isPublic ? "public" : "internal")} {type.ToLower()}.", "Missing", "Summary", fileLines: lines));
                     }
                 }
             }
@@ -284,7 +284,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
             // 1. File Header
             if (!HasFileHeaderGeneric(lines, "//", "/*"))
             {
-                gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing standard copyright/file header.", "Missing", "Header"));
+                gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing standard copyright/file header.", "Missing", "Header", fileLines: lines));
             }
 
             for (int i = 0; i < lines.Length; i++)
@@ -317,14 +317,14 @@ namespace DocumentationCompleteness.Api.Services.Analysis
                         {
                             if (!docContent.Contains("@param"))
                             {
-                                gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, "Parameter", name, "Medium", "Public API JSDoc missing @param tags.", "Incomplete", "Parameters"));
+                                gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, "Parameter", name, "Medium", "Public API JSDoc missing @param tags.", "Incomplete", "Parameters", fileLines: lines));
                             }
                         }
                     }
                     else
                     {
                         var severity = isPublic ? "Critical" : "Low";
-                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, severity, $"Missing JSDoc for {(isPublic ? "public" : "internal")} {type.ToLower()}.", "Missing", "Summary"));
+                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, severity, $"Missing JSDoc for {(isPublic ? "public" : "internal")} {type.ToLower()}.", "Missing", "Summary", fileLines: lines));
                     }
                 }
             }
@@ -349,7 +349,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
             int documentedElements = 0;
 
             if (!HasFileHeaderGeneric(lines, "//", "/*"))
-                gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing file header.", "Missing", "Header"));
+                gaps.Add(CreateGap(repositoryId, jobId, filePath, 1, "File", Path.GetFileName(filePath), "Medium", "Missing file header.", "Missing", "Header", fileLines: lines));
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -377,7 +377,7 @@ namespace DocumentationCompleteness.Api.Services.Analysis
                     else
                     {
                         // Harder to determine public/private in C++ regex, default to High for safety
-                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, "High", "Missing Doxygen documentation.", "Missing", "Summary"));
+                        gaps.Add(CreateGap(repositoryId, jobId, filePath, i + 1, type, name, "High", "Missing Doxygen documentation.", "Missing", "Summary", fileLines: lines));
                     }
                 }
             }
@@ -524,11 +524,22 @@ namespace DocumentationCompleteness.Api.Services.Analysis
         private DocumentationGap CreateGapWithNode(Guid repoId, Guid jobId, string filePath, SyntaxNode node, string type, string name, string severity, string message, string gapType = "Missing", string coverageType = "Summary")
         {
             var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-            return CreateGap(repoId, jobId, filePath, line, type, name, severity, message, gapType, coverageType);
+            var snippet = ExtractSnippetFromNode(node, maxLines: 60);
+            var language = DetectLanguage(filePath);
+            return CreateGap(repoId, jobId, filePath, line, type, name, severity, message, gapType, coverageType, language, snippet);
         }
 
-        private DocumentationGap CreateGap(Guid repoId, Guid jobId, string filePath, int line, string type, string name, string severity, string message, string gapType = "Missing", string coverageType = "Summary")
+        private DocumentationGap CreateGap(Guid repoId, Guid jobId, string filePath, int line, string type, string name, string severity, string message, string gapType = "Missing", string coverageType = "Summary", string? language = null, string? snippet = null, string[]? fileLines = null)
         {
+            // Auto-detect language if not provided
+            language ??= DetectLanguage(filePath);
+
+            // Extract snippet from file lines if not already provided
+            if (string.IsNullOrEmpty(snippet) && fileLines != null)
+            {
+                snippet = ExtractSnippetFromFile(fileLines, line, maxLines: 60);
+            }
+
             return new DocumentationGap
             {
                 Id = Guid.NewGuid(),
@@ -542,7 +553,64 @@ namespace DocumentationCompleteness.Api.Services.Analysis
                 Message = message,
                 GapType = gapType,
                 MissingCoverageType = coverageType,
-                Status = "Open"
+                Status = "Open",
+                Language = language,
+                CodeSnippet = snippet ?? string.Empty
+            };
+        }
+
+        // ----------------------------------------------------------------
+        // SNIPPET EXTRACTION
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Extract code snippet from a Roslyn SyntaxNode (C# only).
+        /// Caps at maxLines to stay within AI token limits.
+        /// </summary>
+        private string ExtractSnippetFromNode(SyntaxNode node, int maxLines = 60)
+        {
+            var text = node.ToFullString();
+            var lines = text.Split('\n');
+
+            if (lines.Length <= maxLines)
+                return text;
+
+            // For large methods: take signature + first 30 lines + last 5 lines
+            var head = lines.Take(30);
+            var tail = lines.TakeLast(5);
+            return string.Join('\n', head) + "\n// ... (truncated) ...\n" + string.Join('\n', tail);
+        }
+
+        /// <summary>
+        /// Extract code snippet from file lines (for Python, JS/TS, C++).
+        /// Reads from startLine forward, up to maxLines.
+        /// </summary>
+        private string ExtractSnippetFromFile(string[] allLines, int startLine, int maxLines = 60)
+        {
+            var start = Math.Max(0, startLine - 1); // LineNumber is 1-based
+            var end = Math.Min(allLines.Length, start + maxLines);
+            return string.Join('\n', allLines[start..end]);
+        }
+
+        /// <summary>
+        /// Detect programming language from file extension.
+        /// </summary>
+        private string DetectLanguage(string filePath)
+        {
+            return Path.GetExtension(filePath).ToLower() switch
+            {
+                ".cs"  => "csharp",
+                ".py"  => "python",
+                ".js"  => "javascript",
+                ".ts"  => "typescript",
+                ".tsx" => "typescript",
+                ".jsx" => "javascript",
+                ".cpp" => "cpp",
+                ".cc"  => "cpp",
+                ".h"   => "cpp",
+                ".hpp" => "cpp",
+                ".md"  => "markdown",
+                _      => "unknown"
             };
         }
     }

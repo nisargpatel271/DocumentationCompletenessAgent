@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using DocumentationCompleteness.Api.Models;
 
@@ -6,11 +8,8 @@ namespace DocumentationCompleteness.Api.Services
 {
     public interface IAnalysisService
     {
-        /// <summary>
-        /// Triggers a full analysis for the specified repository.
-        /// </summary>
-        /// <param name="repositoryId">The ID of the repository to analyze.</param>
-        /// <returns>The created AnalysisJob tracking the process.</returns>
-        Task<AnalysisJob> RunAnalysisAsync(Guid repositoryId);
+        Task<AnalysisJob> CreateJobAsync(Guid repositoryId);
+        Task ExecuteJobAsync(Guid jobId, CancellationToken ct = default);
+        Task<List<DocumentationGap>> GetGapsByJobIdAsync(Guid jobId, CancellationToken ct = default);
     }
 }

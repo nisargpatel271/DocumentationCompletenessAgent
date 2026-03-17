@@ -3,6 +3,7 @@ using System;
 using DocumentationCompleteness.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DocumentationCompleteness.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260310204008_AddLanguageAndSnippetToGap")]
+    partial class AddLanguageAndSnippetToGap
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,61 +24,6 @@ namespace DocumentationCompleteness.Api.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("DocumentationCompleteness.Api.Models.AISuggestion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<double>("ConfidenceScore")
-                        .HasColumnType("double precision")
-                        .HasColumnName("confidence_score");
-
-                    b.Property<string>("ElementName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("element_name");
-
-                    b.Property<string>("ElementType")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("element_type");
-
-                    b.Property<Guid>("GapId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("gap_id");
-
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("generated_at");
-
-                    b.Property<string>("GeneratedDocumentation")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("generated_documentation");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("language");
-
-                    b.Property<bool>("NeedsHumanReview")
-                        .HasColumnType("boolean")
-                        .HasColumnName("needs_human_review");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GapId");
-
-                    b.ToTable("ai_suggestions");
-                });
 
             modelBuilder.Entity("DocumentationCompleteness.Api.Models.AnalysisJob", b =>
                 {
@@ -91,10 +39,6 @@ namespace DocumentationCompleteness.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("text")
-                        .HasColumnName("error_message");
 
                     b.Property<string>("Log")
                         .HasColumnType("text")
@@ -326,17 +270,6 @@ namespace DocumentationCompleteness.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("repositories");
-                });
-
-            modelBuilder.Entity("DocumentationCompleteness.Api.Models.AISuggestion", b =>
-                {
-                    b.HasOne("DocumentationCompleteness.Api.Models.DocumentationGap", "Gap")
-                        .WithMany()
-                        .HasForeignKey("GapId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Gap");
                 });
 
             modelBuilder.Entity("DocumentationCompleteness.Api.Models.AnalysisJob", b =>

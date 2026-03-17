@@ -55,5 +55,20 @@ namespace DocumentationCompleteness.Api.Controllers
 
             return CreatedAtAction("GetRepository", new { id = repository.Id }, repository);
         }
+        // DELETE: api/Repositories/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRepository(Guid id)
+        {
+            var repository = await _context.Repositories.FindAsync(id);
+            if (repository == null)
+            {
+                return NotFound();
+            }
+
+            _context.Repositories.Remove(repository);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }
