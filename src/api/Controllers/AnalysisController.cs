@@ -68,7 +68,7 @@ namespace DocumentationCompleteness.Api.Controllers
                     j.CreatedAt,
                     j.StartedAt,
                     j.CompletedAt,
-                    ErrorMessage = j.Status == "Failed" ? j.Log : null
+                    ErrorMessage = (j.Status == "Failed") ? (j.ErrorMessage ?? j.Log) : null
                 })
                 .FirstOrDefaultAsync();
 

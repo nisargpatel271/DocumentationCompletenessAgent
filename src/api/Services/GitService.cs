@@ -17,6 +17,17 @@ namespace DocumentationCompleteness.Api.Services
 
         public async Task<string> CloneRepositoryAsync(string repositoryUrl, string localPath)
         {
+            if (string.IsNullOrWhiteSpace(repositoryUrl))
+                throw new ArgumentException("Repository URL cannot be null or empty.", nameof(repositoryUrl));
+
+            // Normalize URL: Ensure .git suffix if it's a standard HTTPS repo URL
+            if (!repositoryUrl.EndsWith(".git", StringComparison.OrdinalIgnoreCase) && 
+                (repositoryUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                 repositoryUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+            {
+                repositoryUrl += ".git";
+            }
+
             if (Directory.Exists(localPath))
             {
                 _logger.LogInformation("Repository already exists at {LocalPath}. Cleaning up...", localPath);
@@ -43,8 +54,16 @@ namespace DocumentationCompleteness.Api.Services
 
             using var process = new Process { StartInfo = processStartInfo };
             
+            var errorOutput = new System.Text.StringBuilder();
             process.OutputDataReceived += (sender, e) => _logger.LogDebug(e.Data);
-            process.ErrorDataReceived += (sender, e) => _logger.LogWarning(e.Data);
+            process.ErrorDataReceived += (sender, e) => 
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    errorOutput.AppendLine(e.Data);
+                    _logger.LogWarning(e.Data);
+                }
+            };
 
             process.Start();
             process.BeginOutputReadLine();
@@ -54,8 +73,21 @@ namespace DocumentationCompleteness.Api.Services
 
             if (process.ExitCode != 0)
             {
-                _logger.LogError("Git clone failed with exit code {ExitCode}", process.ExitCode);
-                throw new Exception($"Git clone failed for {repositoryUrl}");
+                var errorMsg = errorOutput.ToString();
+                _logger.LogError("Git clone failed with exit code {ExitCode}. Error: {Error}", process.ExitCode, errorMsg);
+
+                if (errorMsg.Contains("Authentication failed", StringComparison.OrdinalIgnoreCase) ||
+                    errorMsg.Contains("could not read Username", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new Exception("Authentication failed. Please verify your credentials/token.");
+                }
+                
+                if (errorMsg.Contains("repository not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new Exception("Repository not found. Verify the URL is correct and public, or providing a valid token.");
+                }
+
+                throw new Exception($"Git clone failed ({process.ExitCode}): {errorMsg}");
             }
 
             _logger.LogInformation("Successfully cloned repository.");

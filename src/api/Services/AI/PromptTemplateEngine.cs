@@ -16,230 +16,350 @@ public class PromptTemplateEngine
         };
     }
 
-    private string BuildCSharpPrompt(DocumentationGap gap) => $$"""
-        You are a senior C# developer fixing missing documentation.
+    private string BuildCSharpPrompt(DocumentationGap gap) => $$$"""
+You are an expert C# code reviewer and documentation specialist.
 
-        TASK: Return the COMPLETE function exactly as written, but with 
-        proper XML documentation comments added before it.
+TASK: Return the COMPLETE function exactly as written, with 
+comprehensive XML documentation added before it — CodeRabbit style.
 
-        ELEMENT: {{gap.ElementName}} ({{gap.ElementType}})
-        MISSING: {{gap.MissingCoverageType}}
+ELEMENT: {{{gap.ElementName}}} ({{{gap.ElementType}}})
+MISSING: {{{gap.MissingCoverageType}}}
 
-        STRICT RULES:
-        1. Output ONLY the complete fixed code — nothing else
-        2. No explanation, no markdown fences, no preamble
-        3. XML docs go IMMEDIATELY before the method/class signature
-        4. Keep every single line of existing code EXACTLY as-is
-        5. Add <summary>, <param> for every param, <returns> if non-void,
-           <exception> for every throw, <example> for public elements
-        6. Never invent behavior not visible in the code
-        7. If complex: add inside <summary>:
-           <!-- REVIEW: High complexity — verify this documentation -->
+STRICT RULES:
+1. Output ONLY the complete fixed code — nothing else
+2. No explanation, no markdown fences, no preamble
+3. XML docs go IMMEDIATELY before the method/class signature
+4. Keep every single line of existing code EXACTLY as-is
+5. Include ALL these XML sections:
+   - <summary>: what it does and why it exists
+   - <param>: meaning of each parameter, valid values, constraints
+   - <returns>: what is returned and when, including null cases
+   - <exception>: every possible exception and exact condition
+   - <example>: realistic copy-paste usage with error handling
+   - <remarks>: include these subsections if relevant:
+     * Security: auth checks missing, input validation, injection risk
+     * Performance: DB calls, missing cache, O(n) complexity
+     * Side Effects: what changes in DB, cache, external services
+     * Thread Safety: safe or not
+6. Add <seealso> for related methods if obvious from context
+7. Never invent behavior not visible in the code
+8. If complex: add inside <summary>:
+   <!-- REVIEW: High complexity — human review recommended -->
 
-        EXAMPLE:
-        INPUT CODE:
-        public async Task<User> GetUserById(Guid id)
-        {
-            if (id == Guid.Empty)
-                throw new ArgumentException("Invalid ID");
-            return await _repo.FindAsync(id);
-        }
+EXAMPLE INPUT:
+public async Task<bool> DeleteUser(string userId, string requesterId)
+{{
+    var user = await _db.Users.FindAsync(userId);
+    await _db.Users.DeleteAsync(userId);
+    await _cache.InvalidateAsync($"user:{{userId}}");
+    await _audit.LogAsync(requesterId, "DELETE_USER", userId);
+    return true;
+}}
 
-        YOUR OUTPUT:
-        /// <summary>
-        /// Retrieves a user by their unique identifier.
-        /// </summary>
-        /// <param name="id">The unique identifier of the user. Must not be empty.</param>
-        /// <returns>The user matching the specified ID.</returns>
-        /// <exception cref="ArgumentException">Thrown when id is Guid.Empty.</exception>
-        /// <example>
-        /// <code>
-        /// var user = await GetUserById(userId);
-        /// Console.WriteLine(user.Name);
-        /// </code>
-        /// </example>
-        public async Task<User> GetUserById(Guid id)
-        {
-            if (id == Guid.Empty)
-                throw new ArgumentException("Invalid ID");
-            return await _repo.FindAsync(id);
-        }
+EXAMPLE OUTPUT:
+/// <summary>
+/// Permanently deletes a user account and cleans up associated resources.
+/// </summary>
+/// <param name="userId">The unique identifier of the user to delete. Must be non-null and non-empty.</param>
+/// <param name="requesterId">The ID of the requester for audit trail purposes.</param>
+/// <returns>True if deletion was successful.</returns>
+/// <exception cref="NotFoundException">Thrown when userId does not exist.</exception>
+/// <exception cref="DatabaseException">Thrown when deletion or cache invalidation fails.</exception>
+/// <remarks>
+/// <para><strong>Security:</strong> No authorization check performed — caller must verify
+/// the requester has delete permissions before calling this method.</para>
+/// <para><strong>Performance:</strong> Makes 3 sequential async calls (DB, cache, audit).
+/// Consider batching for bulk deletions.</para>
+/// <para><strong>Side Effects:</strong> Permanently deletes DB record, invalidates cache,
+/// writes audit log entry.</para>
+/// </remarks>
+/// <example>
+/// <code>
+/// var success = await DeleteUser("user-123", "admin-456");
+/// if (!success) throw new Exception("Deletion failed");
+/// </code>
+/// </example>
+/// <seealso cref="SuspendUser"/>
+/// <seealso cref="DeactivateUser"/>
+public async Task<bool> DeleteUser(string userId, string requesterId)
+{{
+    var user = await _db.Users.FindAsync(userId);
+    await _db.Users.DeleteAsync(userId);
+    await _cache.InvalidateAsync($"user:{{userId}}");
+    await _audit.LogAsync(requesterId, "DELETE_USER", userId);
+    return true;
+}}
 
-        NOW FIX THIS CODE:
-        {{gap.CodeSnippet}}
-        """;
+NOW FIX THIS CODE:
+{{{gap.CodeSnippet}}}
+""";
 
-    private string BuildPythonPrompt(DocumentationGap gap) => $$$""""
-        You are a senior Python developer fixing missing documentation.
+    private string BuildPythonPrompt(DocumentationGap gap) => $$$$""""
+You are an expert Python code reviewer and documentation specialist.
 
-        TASK: Return the COMPLETE function exactly as written, but with 
-        a proper Google-style docstring inserted as the first line of the body.
+TASK: Return the COMPLETE function exactly as written, with a 
+comprehensive Google-style docstring inserted as the first line 
+of the body — CodeRabbit style.
 
-        ELEMENT: {{{gap.ElementName}}} ({{{gap.ElementType}}})
-        MISSING: {{{gap.MissingCoverageType}}}
+ELEMENT: {{{{gap.ElementName}}}} ({{{{gap.ElementType}}}})
+MISSING: {{{{gap.MissingCoverageType}}}}
 
-        STRICT RULES:
-        1. Output ONLY the complete fixed code — nothing else
-        2. No explanation, no markdown fences, no preamble
-        3. Docstring goes as FIRST LINE inside the function body
-        4. Keep every single line of existing code EXACTLY as-is
-        5. Add summary line, Args, Returns, Raises, Example sections
-        6. Never copy assert statements or code into the docstring
-        7. Never invent behavior not visible in the code
-        8. If complex: add "Note: High complexity — verify this documentation"
+STRICT RULES:
+1. Output ONLY the complete fixed code — nothing else
+2. No explanation, no markdown fences, no preamble
+3. Docstring goes as FIRST LINE inside the function body
+4. Keep every single line of existing code EXACTLY as-is
+5. Include ALL these sections:
+   - Summary line: what it does and why it exists
+   - Args: every parameter with type, meaning, valid values
+   - Returns: what is returned and when, including None cases
+   - Raises: every possible exception and exact condition
+   - Example: realistic copy-paste usage
+   - Note: include these if relevant:
+     * Security concerns
+     * Performance implications
+     * Side effects
+     * Thread safety
+     * Related functions (See Also)
+6. Never copy assert statements or code into the docstring
+7. Never invent behavior not visible in the code
+8. If complex: add "Note: High complexity — human review recommended"
 
-        EXAMPLE:
-        INPUT CODE:
-        def get_user_by_id(user_id: str) -> dict:
-            if not user_id:
-                raise ValueError("Invalid ID")
-            return db.find_user(user_id)
+EXAMPLE INPUT:
+def delete_user(user_id: str, requester_id: str) -> bool:
+    user = db.users.find(user_id)
+    db.users.delete(user_id)
+    cache.invalidate(f"user:{{user_id}}")
+    audit.log(requester_id, "DELETE_USER", user_id)
+    return True
 
-        YOUR OUTPUT:
-        def get_user_by_id(user_id: str) -> dict:
-            """
-            Retrieve a user by their unique identifier.
+EXAMPLE OUTPUT:
+def delete_user(user_id: str, requester_id: str) -> bool:
+    """
+    Permanently delete a user account and clean up associated resources.
 
-            Args:
-                user_id (str): The unique identifier of the user. Must be non-empty.
+    Removes the user from the database, invalidates their cache entry,
+    and records the action in the audit log.
 
-            Returns:
-                dict: User data including id, name, and email.
+    Args:
+        user_id (str): The unique identifier of the user to delete.
+            Must be non-empty and reference an existing user.
+        requester_id (str): The ID of the admin performing the deletion.
+            Used for audit trail — must be a valid admin ID.
 
-            Raises:
-                ValueError: If user_id is empty or None.
+    Returns:
+        bool: True if deletion was successful. Never returns False —
+            raises an exception on failure instead.
 
-            Example:
-                >>> user = get_user_by_id("abc-123")
-                >>> print(user["name"])
-            """
-            if not user_id:
-                raise ValueError("Invalid ID")
-            return db.find_user(user_id)
+    Raises:
+        UserNotFoundError: If user_id does not exist in the database.
+        DatabaseError: If deletion or cache invalidation fails.
 
-        NOW FIX THIS CODE:
-        {{{gap.CodeSnippet}}}
-        """";
+    Example:
+        >>> success = delete_user("user-123", "admin-456")
+        >>> assert success is True
 
-    private string BuildJsPrompt(DocumentationGap gap) => $$"""
-        You are a senior JavaScript developer fixing missing documentation.
+    Note:
+        **Security:** No authorization check — caller must verify
+        the requester has delete permissions before calling.
 
-        TASK: Return the COMPLETE function exactly as written, but with 
-        proper JSDoc inserted immediately above it.
+        **Side Effects:** Permanently deletes DB record, invalidates
+        Redis cache, writes to audit log.
 
-        ELEMENT: {{gap.ElementName}} ({{gap.ElementType}})
-        MISSING: {{gap.MissingCoverageType}}
+        **Performance:** Makes 3 sequential I/O calls. Consider
+        batching for bulk deletions.
 
-        STRICT RULES:
-        1. Output ONLY the complete fixed code — nothing else
-        2. No explanation, no markdown fences, no preamble
-        3. JSDoc goes IMMEDIATELY before the function
-        4. Keep every single line of existing code EXACTLY as-is
-        5. Add description, @param for every param, @returns, @throws
-        6. Never invent behavior not visible in the code
-        7. If complex: add @warning High complexity — verify this documentation
+        See Also: suspend_user() for a non-destructive alternative.
+    """
+    user = db.users.find(user_id)
+    db.users.delete(user_id)
+    cache.invalidate(f"user:{{user_id}}")
+    audit.log(requester_id, "DELETE_USER", user_id)
+    return True
 
-        EXAMPLE:
-        INPUT CODE:
-        async function getUserById(userId) {
-            if (!userId) throw new Error("Invalid ID");
-            return await db.findUser(userId);
-        }
+NOW FIX THIS CODE:
+{{{{gap.CodeSnippet}}}}
+"""";
 
-        YOUR OUTPUT:
-        /**
-         * Retrieves a user by their unique identifier.
-         * @param {string} userId - The unique identifier of the user.
-         * @returns {Promise<Object>} The user object with id, name and email.
-         * @throws {Error} If userId is empty or null.
-         * @example
-         * const user = await getUserById("abc-123");
-         * console.log(user.name);
-         */
-        async function getUserById(userId) {
-            if (!userId) throw new Error("Invalid ID");
-            return await db.findUser(userId);
-        }
+    private string BuildJsPrompt(DocumentationGap gap) => $$$"""
+You are an expert JavaScript code reviewer and documentation specialist.
 
-        NOW FIX THIS CODE:
-        {{gap.CodeSnippet}}
-        """;
+TASK: Return the COMPLETE function exactly as written, with 
+comprehensive JSDoc inserted immediately above it — CodeRabbit style.
 
-    private string BuildTypeScriptPrompt(DocumentationGap gap) => $$"""
-        You are a senior TypeScript developer fixing missing documentation.
+ELEMENT: {{{gap.ElementName}}} ({{{gap.ElementType}}})
+MISSING: {{{gap.MissingCoverageType}}}
 
-        TASK: Return the COMPLETE function exactly as written, but with 
-        proper JSDoc inserted immediately above it.
+STRICT RULES:
+1. Output ONLY the complete fixed code — nothing else
+2. No explanation, no markdown fences, no preamble
+3. JSDoc goes IMMEDIATELY before the function
+4. Keep every single line of existing code EXACTLY as-is
+5. Include ALL these JSDoc tags:
+   - Description: what it does and why it exists
+   - @param: type + meaning + valid values for every parameter
+   - @returns: type + what is returned and when
+   - @throws: every error type and exact condition
+   - @example: realistic copy-paste usage
+   - @remarks: security, performance, side effects if relevant
+   - @see: related functions if obvious
+6. Never invent behavior not visible in the code
+7. If complex: add @warning High complexity — human review recommended
 
-        ELEMENT: {{gap.ElementName}} ({{gap.ElementType}})
-        MISSING: {{gap.MissingCoverageType}}
+EXAMPLE INPUT:
+async function deleteUser(userId, requesterId) {{
+    const user = await db.users.findById(userId);
+    await db.users.delete(userId);
+    await cache.invalidate(`user:${{userId}}`);
+    await audit.log(requesterId, 'DELETE_USER', userId);
+    return true;
+}}
 
-        STRICT RULES:
-        1. Output ONLY the complete fixed code — nothing else
-        2. No explanation, no markdown fences, no preamble
-        3. JSDoc goes IMMEDIATELY before the function/class
-        4. Keep every single line of existing code EXACTLY as-is
-        5. Since this is TypeScript — do NOT repeat types in @param/@returns
-           Focus on MEANING not type declarations
-        6. Add description, @param for every param, @returns, @throws
-        7. For React components add @component and @example with JSX
-        8. Never invent behavior not visible in the code
-        9. If complex: add @warning High complexity — verify this documentation
+EXAMPLE OUTPUT:
+/**
+ * Permanently deletes a user account and cleans up associated resources.
+ *
+ * Removes the user from the database, invalidates their cache entry,
+ * and records the action in the audit log.
+ *
+ * @param {string} userId - The unique identifier of the user to delete.
+ * @param {string} requesterId - The admin ID performing deletion (for audit trail).
+ * @returns {Promise<boolean>} Resolves to true when deletion is complete.
+ * @throws {NotFoundError} If userId does not exist in the database.
+ * @throws {DatabaseError} If deletion or cache invalidation fails.
+ *
+ * @example
+ * const success = await deleteUser("user-123", "admin-456");
+ * console.log(success); // true
+ *
+ * @remarks
+ * **Security:** No authorization check — caller must verify delete permissions.
+ * **Side Effects:** Deletes DB record, invalidates cache, writes audit log.
+ * **Performance:** 3 sequential async calls — consider batching for bulk ops.
+ *
+ * @see suspendUser for a non-destructive alternative
+ */
+async function deleteUser(userId, requesterId) {{
+    const user = await db.users.findById(userId);
+    await db.users.delete(userId);
+    await cache.invalidate(`user:${{userId}}`);
+    await audit.log(requesterId, 'DELETE_USER', userId);
+    return true;
+}}
 
-        EXAMPLE:
-        INPUT CODE:
-        async function getUserById(userId: string): Promise<User> {
-            if (!userId) throw new Error("Invalid ID");
-            return await db.findUser(userId);
-        }
+NOW FIX THIS CODE:
+{{{gap.CodeSnippet}}}
+""";
 
-        YOUR OUTPUT:
-        /**
-         * Retrieves a user by their unique identifier.
-         * @param userId - The unique identifier of the user. Must be non-empty.
-         * @returns The matching user object.
-         * @throws {Error} If userId is empty or null.
-         * @example
-         * const user = await getUserById("abc-123");
-         * console.log(user.name);
-         */
-        async function getUserById(userId: string): Promise<User> {
-            if (!userId) throw new Error("Invalid ID");
-            return await db.findUser(userId);
-        }
+    private string BuildTypeScriptPrompt(DocumentationGap gap) => $$$"""
+You are an expert TypeScript code reviewer and documentation specialist.
 
-        NOW FIX THIS CODE:
-        {{gap.CodeSnippet}}
-        """;
+TASK: Return the COMPLETE function exactly as written, with 
+comprehensive JSDoc inserted immediately above it — CodeRabbit style.
+
+ELEMENT: {{{gap.ElementName}}} ({{{gap.ElementType}}})
+MISSING: {{{gap.MissingCoverageType}}}
+
+STRICT RULES:
+1. Output ONLY the complete fixed code — nothing else
+2. No explanation, no markdown fences, no preamble
+3. JSDoc goes IMMEDIATELY before the function/class
+4. Keep every single line of existing code EXACTLY as-is
+5. TypeScript specific: do NOT repeat types in @param/@returns
+   Types are already in the signature — focus on MEANING
+6. Include ALL these JSDoc tags:
+   - Description: what it does and why it exists
+   - @param: meaning + valid values (no types needed)
+   - @returns: what is returned and when
+   - @throws: every error and exact condition
+   - @example: realistic copy-paste TypeScript usage
+   - @remarks: security, performance, side effects if relevant
+   - @see: related functions if obvious
+7. For React components: add @component and JSX example
+8. Never invent behavior not visible in the code
+9. If complex: add @warning High complexity — human review recommended
+
+EXAMPLE INPUT:
+async function deleteUser(
+    userId: string, 
+    requesterId: string
+): Promise<boolean> {{
+    const user = await db.users.findById(userId);
+    await db.users.delete(userId);
+    await cache.invalidate(`user:${{userId}}`);
+    await audit.log(requesterId, 'DELETE_USER', userId);
+    return true;
+}}
+
+EXAMPLE OUTPUT:
+/**
+ * Permanently deletes a user account and cleans up associated resources.
+ *
+ * Removes the user from the database, invalidates their cache entry,
+ * and records the deletion in the audit log.
+ *
+ * @param userId - The unique identifier of the user to delete. Must be non-empty.
+ * @param requesterId - The admin performing the deletion. Used for audit trail.
+ * @returns True when deletion completes successfully.
+ * @throws {NotFoundError} If userId does not exist in the database.
+ * @throws {DatabaseError} If deletion or cache invalidation fails.
+ *
+ * @example
+ * const success = await deleteUser("user-123", "admin-456");
+ * if (!success) throw new Error("Deletion failed");
+ *
+ * @remarks
+ * **Security:** No authorization check performed — caller must verify
+ * the requester has delete permissions before calling this function.
+ *
+ * **Side Effects:** Permanently deletes DB record, invalidates Redis
+ * cache entry, writes to audit log.
+ *
+ * **Performance:** Makes 3 sequential async I/O calls. Consider
+ * batching if deleting multiple users.
+ *
+ * @see {@link suspendUser} for a non-destructive alternative
+ */
+async function deleteUser(
+    userId: string, 
+    requesterId: string
+): Promise<boolean> {{
+    const user = await db.users.findById(userId);
+    await db.users.delete(userId);
+    await cache.invalidate(`user:${{userId}}`);
+    await audit.log(requesterId, 'DELETE_USER', userId);
+    return true;
+}}
+
+NOW FIX THIS CODE:
+{{{gap.CodeSnippet}}}
+""";
 
     private string BuildDefaultPrompt(DocumentationGap gap)
     {
-        return $$"""
-            Generate documentation for this {{gap.Language}} {{gap.ElementType}} named {{gap.ElementName}}:
+        return $$$"""
+            Generate documentation for this {{{gap.Language}}} {{{gap.ElementType}}} named {{{gap.ElementName}}}:
 
-            {{gap.CodeSnippet}}
+            {{{gap.CodeSnippet}}}
             """;
     }
 
     public string GetSystemPrompt() => """
-        You are a senior software engineer with 10+ years of experience 
-        writing technical documentation. Your job is to generate accurate,
-        professional documentation for code.
+You are an expert code reviewer and documentation specialist.
+You deeply understand code and write documentation that goes 
+beyond describing what code does — you explain WHY it exists, 
+flag potential issues, and help developers use it safely.
 
-        STRICT RULES:
-        1. Output ONLY the documentation comment — no explanation, no markdown fences
-        2. Never invent behavior that isn't visible in the code
-        3. Never use placeholder text like "TODO" or "Description here"
-        4. Always document EVERY parameter — never skip one
-        5. If the method returns a value, always document it
-        6. If you see throw/raise/except statements, document those exceptions
-        7. Include at least one practical usage example for public methods
-        8. If code logic is unclear or highly complex, add this exact line:
-           "Note: This method has high complexity — human review recommended."
-        9. Use precise technical language — avoid vague words like "handles" or "deals with"
-        10. Write as if explaining to a capable junior developer joining the team
+Your documentation must:
+1. Be technically precise — never vague or generic
+2. Flag security concerns (auth, validation, injection risks)
+3. Note performance implications (DB queries, caching, complexity)
+4. Highlight reliability issues (missing error handling, race conditions)
+5. Provide realistic copy-paste examples
+6. Reference related functions when obvious from context
+7. Flag honestly what needs human review
 
-        Your documentation will be shown directly to developers and must be 
-        production-ready. Quality matters more than speed.
-        """;
+Write as a senior engineer doing a thorough code review.
+Quality and accuracy matter more than brevity.
+""";
 }

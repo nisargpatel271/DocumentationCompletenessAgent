@@ -22,43 +22,64 @@ export default function AnalysisResultsPage() {
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
+    let isMounted = true;
 
-    const init = async () => {
+    const checkJob = async () => {
       try {
         const job = await AnalysisService.getJobStatus(jobId!);
+        if (!isMounted) return;
+
         if (job.status === 'Completed') {
+          setPolling(false);
           const data = await AnalysisService.getJobResults(jobId!);
-          setResult(data);
+          if (isMounted) setResult(data);
         } else if (job.status === 'Failed') {
+          setPolling(false);
           setError(job.errorMessage || 'Analysis failed');
-        } else {
+        } else if (!interval) {
+          // If still running/queued and we haven't started polling, start it
           setPolling(true);
           interval = setInterval(async () => {
             try {
               const updated = await AnalysisService.getJobStatus(jobId!);
+              if (!isMounted) {
+                clearInterval(interval);
+                return;
+              }
+
               if (updated.status === 'Completed') {
                 clearInterval(interval);
                 setPolling(false);
                 const data = await AnalysisService.getJobResults(jobId!);
-                setResult(data);
+                if (isMounted) setResult(data);
               } else if (updated.status === 'Failed') {
                 clearInterval(interval);
                 setPolling(false);
                 setError(updated.errorMessage || 'Analysis failed');
               }
-            } catch {
-              clearInterval(interval);
-              setPolling(false);
+            } catch (e) {
+              if (isMounted) {
+                clearInterval(interval);
+                setPolling(false);
+                setError('Lost connection to server');
+              }
             }
           }, 3000);
         }
       } catch (e: any) {
-        setError('Failed to load results');
+        if (isMounted) {
+          setPolling(false);
+          setError('Failed to load results');
+        }
       }
     };
 
-    init();
-    return () => { if (interval) clearInterval(interval); };
+    checkJob();
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
   }, [jobId]);
 
   const handleSuggest = async (gapId: string) => {
